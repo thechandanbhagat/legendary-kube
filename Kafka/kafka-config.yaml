@@ -1,0 +1,95 @@
+apiversion: kafka.strimzi.io/v1beta1
+kind: Kafka
+metadata:
+  name: my-cluster
+spec:
+  kafka:
+    version: 2.4.0
+    replicas: 3
+    listeners:
+      plain: {}
+      tls: {}
+      external:
+        type: loadbalancer
+        tls: false
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      log.message.format.version: "2.4"
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: 100Gi
+        deleteClaim: false
+      - id: 1
+        type: persistent-claim
+        size: 100Gi
+        deleteClaim: false
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 100Gi
+      deleteClaim: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+
+---
+
+# Path: Kafka\kafka-connect.yaml
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaConnect
+metadata:
+  name: my-connect-cluster
+spec:
+  version: 2.4.0
+  replicas: 1
+  bootstrapServers: my-cluster-kafka-bootstrap:9093
+  tls:
+    trustedCertificates:
+      - secretName: my-cluster-cluster-ca-cert
+        certificate: ca.crt
+  config:
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+  externalConfiguration:
+    volumes:
+      - name: connector-config
+        configMap:
+          name: connector-config
+    volumeMounts:
+      - name: connector-config
+        mountPath: /opt/kafka/external-configuration
+  template:
+    pod:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - my-connect-cluster
+                topologyKey: kubernetes.io/hostname
+      tolerations:
+        - key: "kafka"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: "1"
+    limits:
+      memory: 2Gi
+      cpu: "2"
+      
