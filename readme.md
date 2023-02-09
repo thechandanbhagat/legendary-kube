@@ -3,7 +3,7 @@
 # Apply dashboard
 `kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml`   
 or   
-`kubectl apply -f dashboard.yaml`
+`kubectl apply -f dashboard.yaml` # local file
 
 # Create service account
 `kubectl apply -f admin-user.yaml`
